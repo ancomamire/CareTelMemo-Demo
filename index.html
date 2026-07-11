@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ケア電話メモ（仮称）体験デモ</title>
+<style>
+  :root{
+    --slate:#50808E; --slate-deep:#3E6673; --sage:#84B59F; --tint:#EDF4F1;
+    --ink:#2E3B3E; --mute:#6B7B7E; --line:#D8E2DF; --paper:#FFFFFF;
+    --bg:#E9EFED; --warn:#B4762A; --warn-bg:#F7EEDD; --ok:#3E7D5B; --ok-bg:#E7F2EB;
+    --danger:#B8574E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
+    background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit; cursor:pointer;}
+
+  /* ===== page frame ===== */
+  .top{
+    background:var(--slate); color:#fff; padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  .top h1{font-size:16px; font-weight:600; letter-spacing:.02em;}
+  .top h1 small{font-weight:400; opacity:.75; font-size:12px; margin-left:8px;}
+  .viewswitch{display:flex; gap:6px;}
+  .viewswitch button{
+    border:1px solid rgba(255,255,255,.5); background:transparent; color:#fff;
+    padding:7px 14px; border-radius:999px; font-size:13px;
+  }
+  .viewswitch button.on{background:#fff; color:var(--slate); border-color:#fff; font-weight:600;}
+  .guide{
+    max-width:960px; margin:18px auto 0; padding:0 20px; font-size:13.5px; color:var(--mute); line-height:1.7;
+  }
+  .guide b{color:var(--slate-deep);}
+  .stage{display:flex; justify-content:center; padding:22px 16px 48px;}
+
+  /* ===== phone ===== */
+  .phone{
+    width:390px; max-width:100%; height:780px; background:var(--paper);
+    border:1.5px solid #9FB4B0; border-radius:34px; overflow:hidden;
+    display:flex; flex-direction:column; box-shadow:0 18px 40px rgba(46,59,62,.16);
+  }
+  .screen{flex:1; overflow-y:auto; display:none; flex-direction:column;}
+  .screen.on{display:flex;}
+  .appbar{
+    padding:16px 20px 12px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--paper);
+    position:sticky; top:0; z-index:2;
+  }
+  .appbar .t{font-size:19px; font-weight:600;}
+  .appbar .d{font-size:12.5px; color:var(--mute);}
+  .backbtn{border:none; background:none; font-size:15px; color:var(--slate); padding:4px 8px 4px 0;}
+
+  /* history list */
+  .rec{padding:15px 20px; border-bottom:1px solid var(--line); background:#fff; width:100%; text-align:left; border-left:none; border-right:none; border-top:none; display:block;}
+  .rec:active{background:var(--tint);}
+  .rec .row1{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .rec .who{font-size:16.5px; font-weight:600;}
+  .rec .when{font-size:12.5px; color:var(--mute); white-space:nowrap;}
+  .tag{
+    display:inline-block; font-size:12.5px; padding:3px 12px; border-radius:999px;
+    background:var(--tint); color:var(--slate-deep); margin:7px 0 5px;
+  }
+  .tag.unset{background:#fff; border:1px solid var(--line); color:var(--mute);}
+  .rec .prev{font-size:13.5px; color:var(--mute); line-height:1.55;
+    display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;}
+  .rec.making{background:var(--tint);}
+  .spin{
+    display:inline-block; width:14px; height:14px; border:2px solid var(--sage);
+    border-top-color:transparent; border-radius:50%; vertical-align:-2px; margin-right:7px;
+    animation:sp 1s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .spin{animation:none;} }
+  .newpulse{animation:pulse 1.6s ease 1;}
+  @keyframes pulse{0%{background:#DFF0E8;}100%{background:#fff;}}
+
+  /* detail */
+  .pad{padding:16px 20px;}
+  .seg{display:flex; background:#F1F5F4; border-radius:12px; padding:4px; gap:4px;}
+  .seg button{
+    flex:1; border:none; background:transparent; padding:11px 4px; font-size:14.5px;
+    border-radius:9px; color:var(--mute);
+  }
+  .seg button.on{background:#fff; color:var(--ink); font-weight:600; box-shadow:0 1px 3px rgba(46,59,62,.12);}
+  .bodybox{
+    background:#F7FAF9; border-radius:14px; padding:16px; margin-top:14px;
+    font-size:15px; line-height:1.85; white-space:pre-line; min-height:190px;
+  }
+  .ainote{font-size:12px; color:var(--mute); margin:10px 2px 0;}
+  .bigbtn{
+    width:100%; border-radius:14px; padding:16px; font-size:16px; font-weight:600; border:none; margin-top:12px;
+  }
+  .bigbtn.primary{background:var(--slate); color:#fff;}
+  .bigbtn.primary:active{background:var(--slate-deep);}
+  .bigbtn.ghost{background:#fff; color:var(--ink); border:1.5px solid var(--line); font-weight:500;}
+  .meta{font-size:13px; color:var(--mute); margin-top:3px;}
+
+  /* dial screen */
+  .contacts{padding:6px 0;}
+  .contacts h3{font-size:13px; color:var(--mute); font-weight:500; padding:14px 20px 6px;}
+  .contact{
+    width:100%; text-align:left; background:#fff; border:none; border-bottom:1px solid var(--line);
+    padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .contact:active{background:var(--tint);}
+  .contact .nm{font-size:16.5px; font-weight:600;}
+  .contact .sub{font-size:12.5px; color:var(--mute); margin-top:3px;}
+  .callicon{
+    width:44px; height:44px; border-radius:50%; background:var(--ok-bg); color:var(--ok);
+    display:flex; align-items:center; justify-content:center; font-size:19px; flex:none;
+  }
+
+  /* in-call overlay */
+  .calling{
+    position:absolute; inset:0; background:var(--slate-deep); color:#fff; z-index:30;
+    display:none; flex-direction:column; align-items:center; justify-content:space-between;
+    padding:70px 30px 54px; text-align:center; border-radius:32px;
+  }
+  .calling.on{display:flex;}
+  .calling .who{font-size:24px; font-weight:600;}
+  .calling .st{font-size:15px; opacity:.85; margin-top:10px;}
+  .notice{
+    background:rgba(255,255,255,.14); border-radius:14px; padding:14px 18px; font-size:13.5px; line-height:1.7;
+  }
+  .endbtn{
+    width:82px; height:82px; border-radius:50%; border:none; background:var(--danger); color:#fff;
+    font-size:15px; font-weight:600;
+  }
+
+  /* bottom nav */
+  .nav{
+    display:grid; grid-template-columns:1fr 1fr 1fr; border-top:1px solid var(--line); background:#fff;
+  }
+  .nav button{
+    border:none; background:none; padding:12px 4px 16px; font-size:12.5px; color:var(--mute);
+  }
+  .nav button .ic{display:block; font-size:22px; margin-bottom:3px;}
+  .nav button.on{color:var(--slate); font-weight:600;}
+
+  /* toast */
+  .toast{
+    position:fixed; left:50%; bottom:34px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; font-size:14px; padding:12px 22px; border-radius:999px;
+    opacity:0; pointer-events:none; transition:.25s; z-index:99; white-space:nowrap;
+  }
+  .toast.on{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* users screen */
+  .user{
+    width:100%; text-align:left; background:#fff; border:none; border-bottom:1px solid var(--line);
+    padding:17px 20px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .user:active{background:var(--tint);}
+  .user .nm{font-size:16.5px; font-weight:600;}
+  .user .cnt{font-size:13px; color:var(--mute);}
+
+  /* chooser sheet */
+  .sheet{
+    position:absolute; inset:0; background:rgba(46,59,62,.4); z-index:40; display:none;
+    align-items:flex-end; border-radius:32px; overflow:hidden;
+  }
+  .sheet.on{display:flex;}
+  .sheet .inner{background:#fff; width:100%; border-radius:22px 22px 0 0; padding:14px 0 20px;}
+  .sheet h3{font-size:14px; color:var(--mute); font-weight:500; padding:8px 20px 10px;}
+  .sheet button.opt{
+    width:100%; border:none; background:none; text-align:left; font-size:16px; padding:15px 22px;
+    border-top:1px solid var(--line);
+  }
+  .sheet button.opt:active{background:var(--tint);}
+
+  /* ===== desktop admin ===== */
+  .desk{display:none; width:100%; max-width:1000px;}
+  .desk.on{display:block;}
+  .browser{
+    position:relative;
+    background:#fff; border:1.5px solid #9FB4B0; border-radius:14px; overflow:hidden;
+    box-shadow:0 14px 34px rgba(46,59,62,.14);
+  }
+  /* desktop call pane */
+  .dcall{display:grid; grid-template-columns:1fr 340px; min-height:420px;}
+  .dcall .left{border-right:1px solid var(--line);}
+  .dcall .left h3{font-size:13px; color:var(--mute); font-weight:500; padding:16px 22px 6px;}
+  .dcall .right{padding:8px 18px 18px;}
+  .dcall .right h3{font-size:13px; color:var(--mute); font-weight:500; padding:10px 4px 0; text-align:center;}
+  .desk-calling{
+    position:absolute; inset:0; z-index:50; background:rgba(62,102,115,.96); color:#fff;
+    display:none; flex-direction:column; align-items:center; justify-content:space-between;
+    padding:60px 40px 46px; text-align:center; border-radius:12px;
+  }
+  .desk-calling.on{display:flex;}
+  .makingrow td{background:var(--tint); color:var(--slate-deep); font-size:14px; padding:14px;}
+  @media (max-width:760px){ .dcall{grid-template-columns:1fr;} .dcall .left{border-right:none; border-bottom:1px solid var(--line);} }
+  .bbar{display:flex; align-items:center; gap:6px; padding:10px 16px; border-bottom:1px solid var(--line);}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--line);}
+  .bbar .url{font-size:12.5px; color:var(--mute); margin-left:10px;}
+  .dhead{padding:16px 22px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
+  .dhead .t{font-size:17px; font-weight:600;}
+  .dhead .u{font-size:13px; color:var(--mute);}
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; padding:14px 22px 0;}
+  .stat{background:#F7FAF9; border-radius:10px; padding:12px 16px;}
+  .stat .l{font-size:12px; color:var(--mute);}
+  .stat .v{font-size:24px; font-weight:600; margin-top:2px;}
+  .filters{display:flex; gap:10px; padding:16px 22px 12px; flex-wrap:wrap;}
+  .filters select,.filters input{
+    font-family:inherit; font-size:13px; padding:8px 12px; border:1px solid var(--line); border-radius:999px;
+    color:var(--ink); background:#fff;
+  }
+  .filters input{flex:1; min-width:200px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead tr{background:#F1F5F4;}
+  th{text-align:left; padding:9px 14px; font-weight:600; color:var(--mute); font-size:12.5px;}
+  td{padding:11px 14px; border-top:1px solid #EDF1F0;}
+  .pill{font-size:12px; padding:3px 12px; border-radius:999px; white-space:nowrap;}
+  .pill.ok{background:var(--ok-bg); color:var(--ok);}
+  .pill.warn{background:var(--warn-bg); color:var(--warn);}
+  .desk .note{font-size:12.5px; color:var(--mute); padding:12px 22px 18px;}
+
+  /* keypad */
+  .numdisp{font-size:27px; text-align:center; padding:20px 10px 4px; letter-spacing:.05em; min-height:66px;}
+  .numdisp .ph{color:#B9C6C3; font-size:15.5px; letter-spacing:0;}
+  .keypad{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:8px 42px 4px; justify-items:center;}
+  .key{width:64px; height:64px; border-radius:50%; border:1px solid var(--line); background:#fff; font-size:23px; font-weight:500; color:var(--ink);}
+  .key:active{background:var(--tint);}
+  .dialactions{display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; justify-items:center; padding:12px 42px 18px;}
+  .callgo{width:66px; height:66px; border-radius:50%; border:none; background:var(--ok); color:#fff; font-size:27px;}
+  .callgo:active{background:#31614A;}
+  .delkey{border:none; background:none; font-size:14px; color:var(--mute); padding:10px;}
+
+  /* desktop tabs & detail */
+  .dtabs{display:flex; gap:2px; padding:10px 22px 0; border-bottom:1px solid var(--line);}
+  .dtabs button{border:none; background:none; padding:11px 18px; font-size:14px; color:var(--mute); border-bottom:3px solid transparent;}
+  .dtabs button.on{color:var(--slate-deep); font-weight:600; border-bottom-color:var(--slate);}
+  .dpane{display:none;} .dpane.on{display:block;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover{background:var(--tint);}
+  .ddetail{padding:18px 22px 26px; max-width:760px;}
+  .ddetail select{font-family:inherit; font-size:14px; padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink);}
+
+  .phoneWrap{position:relative;}
+  @media (max-width:460px){
+    .phone{height:86vh; border-radius:26px;}
+    .calling{border-radius:24px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>ケア電話メモ（仮称）<small>体験デモ　※実際の通話は発生しません</small></h1>
+  <div class="viewswitch">
+    <button id="swPhone" class="on" onclick="switchView('phone')">スマホ体験</button>
+    <button id="swDesk" onclick="switchView('desk')">PC管理者画面</button>
+  </div>
+</header>
+
+<p class="guide" id="guideText">
+  <b>体験の流れ：</b>①下の「電話」から相手を選んで発信 → ②「通話を終える」を押す → ③履歴に<b>要約が自動で作られる</b>のをご覧ください → ④履歴を開いて「支援経過の形式でコピー」もお試しください。
+</p>
+
+<main class="stage">
+
+  <!-- ================= PHONE ================= -->
+  <div class="phoneWrap" id="phoneView">
+    <div class="phone">
+
+      <!-- 履歴 -->
+      <section class="screen on" id="sc-history">
+        <div class="appbar"><span class="t">通話履歴</span><span class="d" id="todayLabel"></span></div>
+        <div id="recList"></div>
+        <div style="flex:1"></div>
+      </section>
+
+      <!-- 詳細 -->
+      <section class="screen" id="sc-detail">
+        <div class="appbar" style="justify-content:flex-start;">
+          <button class="backbtn" onclick="showScreen('sc-history'); setNav('nav-h')">‹ 戻る</button>
+          <div>
+            <div class="t" id="dWho" style="font-size:17px;"></div>
+            <div class="meta" id="dMeta"></div>
+          </div>
+        </div>
+        <div class="pad" style="padding-bottom:4px;">
+          <div style="font-size:12.5px; color:var(--mute); margin-bottom:7px;">この通話の利用者</div>
+          <button id="dTag" class="tag" style="border:none; font-size:14px; padding:7px 16px;" onclick="openSheet()"></button>
+          <span style="font-size:13px; color:var(--mute); margin-left:6px;">タップで変更</span>
+        </div>
+        <div class="pad" style="padding-top:12px; padding-bottom:0;">
+          <div class="seg" role="tablist" aria-label="表示の切替">
+            <button id="mSum" class="on" onclick="setMode('sum')">要約</button>
+            <button id="mFull" onclick="setMode('full')">文字起こし（全文）</button>
+          </div>
+        </div>
+        <div class="pad" style="padding-top:10px; padding-bottom:0;" id="levelRow">
+          <div class="seg" role="tablist" aria-label="要約のくわしさ">
+            <button id="lvS" onclick="setLevel('s')">シンプル</button>
+            <button id="lvM" class="on" onclick="setLevel('m')">標準</button>
+            <button id="lvL" onclick="setLevel('l')">詳細</button>
+          </div>
+        </div>
+        <div class="pad" style="padding-top:0;">
+          <div class="bodybox" id="dBody"></div>
+          <p class="ainote">ⓘ AIが作成した下書きです。内容を確認してからお使いください。</p>
+          <button class="bigbtn primary" onclick="copyRec(true, this)">支援経過の形式でコピー</button>
+          <button class="bigbtn ghost" onclick="copyRec(false, this)">そのままコピー</button>
+        </div>
+      </section>
+
+      <!-- 電話 -->
+      <section class="screen" id="sc-dial">
+        <div class="appbar"><span class="t">電話をかける</span><span class="d">事業所番号：052-3XX-XXXX</span></div>
+        <div class="pad" style="padding-bottom:0;">
+          <div class="seg" role="tablist" aria-label="発信方法の切替">
+            <button id="dtC" class="on" onclick="setDialTab('c')">連絡先</button>
+            <button id="dtK" onclick="setDialTab('k')">番号を入力</button>
+          </div>
+        </div>
+        <div id="dialContacts">
+        <div class="contacts">
+          <h3>よく電話する連絡先（タップで発信）</h3>
+          <button class="contact" onclick="startCall('aozora')">
+            <span><span class="nm">あおぞらデイサービス</span><br><span class="sub">052-7XX-XXXX ・ 通所介護</span></span>
+            <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+          </button>
+          <button class="contact" onclick="startCall('midori')">
+            <span><span class="nm">みどり訪問看護ステーション</span><br><span class="sub">052-8XX-XXXX ・ 訪問看護</span></span>
+            <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+          </button>
+          <button class="contact" onclick="startCall('family')">
+            <span><span class="nm">山田様ご長女（携帯）</span><br><span class="sub">090-5XXX-XXXX ・ ご家族</span></span>
+            <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+          </button>
+          <button class="contact" onclick="startCall('hospital')">
+            <span><span class="nm">市立病院 地域連携室</span><br><span class="sub">052-9XX-XXXX ・ 医療機関</span></span>
+            <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+          </button>
+        </div>
+        <p style="font-size:12.5px; color:var(--mute); padding:14px 20px; line-height:1.7;">
+          発信すると相手には事業所の番号が表示されます。応答前に「この電話は、サービス向上のため音声メモを取らせていただきます」の案内が流れます。
+        </p>
+        </div>
+        <div id="dialKeypad" style="display:none;">
+          <div class="numdisp" id="numDisp"><span class="ph">電話番号を入力してください</span></div>
+          <div class="keypad">
+            <button class="key" onclick="addDigit('1')">1</button>
+            <button class="key" onclick="addDigit('2')">2</button>
+            <button class="key" onclick="addDigit('3')">3</button>
+            <button class="key" onclick="addDigit('4')">4</button>
+            <button class="key" onclick="addDigit('5')">5</button>
+            <button class="key" onclick="addDigit('6')">6</button>
+            <button class="key" onclick="addDigit('7')">7</button>
+            <button class="key" onclick="addDigit('8')">8</button>
+            <button class="key" onclick="addDigit('9')">9</button>
+            <button class="key" onclick="addDigit('*')">＊</button>
+            <button class="key" onclick="addDigit('0')">0</button>
+            <button class="key" onclick="addDigit('#')">#</button>
+          </div>
+          <div class="dialactions">
+            <span></span>
+            <button class="callgo" onclick="manualCall()" aria-label="発信"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></button>
+            <button class="delkey" onclick="delDigit()">⌫ 削除</button>
+          </div>
+          <p style="font-size:12.5px; color:var(--mute); padding:0 20px 14px; line-height:1.7;">
+            登録のない番号でも発信できます。通話後の記録には番号がそのまま表示され、あとから利用者や連絡先に紐づけできます。
+          </p>
+        </div>
+      </section>
+
+      <!-- 利用者べつ -->
+      <section class="screen" id="sc-users">
+        <div class="appbar"><span class="t">利用者べつ</span><span class="d">記録をまとめて確認</span></div>
+        <div id="userList"></div>
+      </section>
+
+      <!-- bottom nav -->
+      <nav class="nav">
+        <button id="nav-h" class="on" onclick="showScreen('sc-history'); setNav('nav-h')"><span class="ic">🕓</span>履歴</button>
+        <button id="nav-d" onclick="showScreen('sc-dial'); setNav('nav-d')"><span class="ic">📞</span>電話</button>
+        <button id="nav-u" onclick="renderUsers(); showScreen('sc-users'); setNav('nav-u')"><span class="ic">👥</span>利用者べつ</button>
+      </nav>
+
+      <!-- calling overlay -->
+      <div class="calling" id="callScr">
+        <div>
+          <div class="who" id="cWho"></div>
+          <div class="st" id="cState">呼び出し中…</div>
+        </div>
+        <div class="notice" id="cNotice">「この電話は、サービス向上のため<br>音声メモを取らせていただきます」<br>を再生しています…</div>
+        <button class="endbtn" onclick="endCall()">終了</button>
+      </div>
+
+      <!-- user chooser sheet -->
+      <div class="sheet" id="sheet" onclick="closeSheet(event)">
+        <div class="inner">
+          <h3>この通話の利用者を選ぶ</h3>
+          <div id="sheetOpts"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= DESKTOP ================= -->
+  <div class="desk" id="deskView">
+    <div class="browser">
+      <div class="bbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">caredenwa.example.jp/admin ｜ ケア電話メモ 管理者画面 ─ ひまわり居宅介護支援事業所</span>
+      </div>
+      <div class="dtabs">
+        <button id="dtabL" class="on" onclick="deskShowPane('list')">記録一覧</button>
+        <button id="dtabD" onclick="deskTabDetail()">記録の詳細</button>
+        <button id="dtabC" onclick="deskShowPane('call')">電話をかける</button>
+      </div>
+      <div class="dpane on" id="dpList">
+      <div class="dhead">
+        <span class="t">きょうの記録</span><span class="u">👤 管理者：高橋</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="l" id="stTotalLabel">今日の通話</div><div class="v" id="stTotal">0<span style="font-size:13px; font-weight:400; color:var(--mute);"> 件</span></div></div>
+        <div class="stat"><div class="l">記録済み</div><div class="v" style="color:var(--ok);" id="stDone">0<span style="font-size:13px; font-weight:400; color:var(--mute);"> 件</span></div></div>
+        <div class="stat"><div class="l">未確認</div><div class="v" style="color:var(--warn);" id="stTodo">0<span style="font-size:13px; font-weight:400; color:var(--mute);"> 件</span></div></div>
+        <div class="stat"><div class="l">今月の通話時間</div><div class="v">31.5<span style="font-size:13px; font-weight:400; color:var(--mute);"> 時間</span></div></div>
+      </div>
+      <div class="filters">
+        <select id="fStaff" onchange="renderDesk()">
+          <option value="">スタッフ：全員</option>
+          <option value="鈴木">鈴木（ケアマネ）</option>
+          <option value="渡辺">渡辺（ケアマネ）</option>
+          <option value="小林">小林（主任）</option>
+          <option value="高橋">高橋（管理者）</option>
+        </select>
+        <select id="fPeriod" onchange="renderDesk()">
+          <option value="today">期間：今日</option>
+          <option value="week">今週</option>
+          <option value="month">今月</option>
+        </select>
+        <input type="text" id="fSearch" oninput="renderDesk()" placeholder="利用者名・事業所名で検索">
+      </div>
+      <table>
+        <thead><tr><th>時刻</th><th>担当</th><th>相手</th><th>利用者</th><th>要約（冒頭）</th><th>状態</th></tr></thead>
+        <tbody id="deskRows"></tbody>
+      </table>
+      <p class="note">一覧の行をクリックすると、要約の確認・レベル切替・コピーができる「記録の詳細」が開きます。スマホ体験で発信した通話もここに反映されます（担当：鈴木）。</p>
+      </div>
+
+      <div class="dpane" id="dpDetail">
+        <div class="ddetail">
+          <button class="backbtn" onclick="deskShowPane('list')">‹ 一覧に戻る</button>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:12px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div style="font-size:19px; font-weight:600;" id="kWho"></div>
+              <div class="meta" id="kMeta"></div>
+            </div>
+            <label style="font-size:13px; color:var(--mute);">利用者：
+              <select id="kUserSel" onchange="deskSetUser(this.value)"></select>
+            </label>
+          </div>
+          <div class="seg" style="margin-top:16px;" role="tablist" aria-label="表示の切替">
+            <button id="kSum" class="on" onclick="deskSetMode('sum')">要約</button>
+            <button id="kFull" onclick="deskSetMode('full')">文字起こし（全文）</button>
+          </div>
+          <div class="seg" style="margin-top:10px;" id="kLevelRow" role="tablist" aria-label="要約のくわしさ">
+            <button id="klvS" onclick="deskSetLevel('s')">シンプル</button>
+            <button id="klvM" class="on" onclick="deskSetLevel('m')">標準</button>
+            <button id="klvL" onclick="deskSetLevel('l')">詳細</button>
+          </div>
+          <div class="bodybox" id="kBody"></div>
+          <p class="ainote">ⓘ AIが作成した下書きです。内容を確認してからお使いください。</p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="bigbtn primary" style="flex:1; min-width:220px;" onclick="deskCopy(true)">支援経過の形式でコピー</button>
+            <button class="bigbtn ghost" style="flex:1; min-width:180px;" onclick="deskCopy(false)">そのままコピー</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dpane" id="dpCall">
+        <div class="dcall">
+          <div class="left">
+            <h3>よく電話する連絡先（クリックで発信）</h3>
+            <button class="contact" onclick="deskStartCall('aozora')">
+              <span><span class="nm">あおぞらデイサービス</span><br><span class="sub">052-7XX-XXXX ・ 通所介護</span></span>
+              <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+            </button>
+            <button class="contact" onclick="deskStartCall('midori')">
+              <span><span class="nm">みどり訪問看護ステーション</span><br><span class="sub">052-8XX-XXXX ・ 訪問看護</span></span>
+              <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+            </button>
+            <button class="contact" onclick="deskStartCall('family')">
+              <span><span class="nm">山田様ご長女（携帯）</span><br><span class="sub">090-5XXX-XXXX ・ ご家族</span></span>
+              <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+            </button>
+            <button class="contact" onclick="deskStartCall('hospital')">
+              <span><span class="nm">市立病院 地域連携室</span><br><span class="sub">052-9XX-XXXX ・ 医療機関</span></span>
+              <span class="callicon"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>
+            </button>
+            <p style="font-size:12.5px; color:var(--mute); padding:14px 22px; line-height:1.7;">
+              パソコンからの発信でも、相手には事業所の番号（052-3XX-XXXX）が表示され、応答前に音声メモの案内が流れます。ヘッドセットでそのまま通話できます。
+            </p>
+          </div>
+          <div class="right">
+            <h3>番号を入力してかける</h3>
+            <div class="numdisp" id="kNumDisp"><span class="ph">電話番号を入力してください</span></div>
+            <div class="keypad" style="padding:8px 20px 4px;">
+              <button class="key" onclick="deskAddDigit('1')">1</button>
+              <button class="key" onclick="deskAddDigit('2')">2</button>
+              <button class="key" onclick="deskAddDigit('3')">3</button>
+              <button class="key" onclick="deskAddDigit('4')">4</button>
+              <button class="key" onclick="deskAddDigit('5')">5</button>
+              <button class="key" onclick="deskAddDigit('6')">6</button>
+              <button class="key" onclick="deskAddDigit('7')">7</button>
+              <button class="key" onclick="deskAddDigit('8')">8</button>
+              <button class="key" onclick="deskAddDigit('9')">9</button>
+              <button class="key" onclick="deskAddDigit('*')">＊</button>
+              <button class="key" onclick="deskAddDigit('0')">0</button>
+              <button class="key" onclick="deskAddDigit('#')">#</button>
+            </div>
+            <div class="dialactions" style="padding:12px 20px 8px;">
+              <span></span>
+              <button class="callgo" onclick="deskManualCall()" aria-label="発信"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></button>
+              <button class="delkey" onclick="deskDelDigit()">⌫ 削除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="desk-calling" id="deskCallScr">
+        <div>
+          <div class="who" id="kcWho" style="font-size:24px; font-weight:600;"></div>
+          <div class="st" id="kcState" style="font-size:15px; opacity:.85; margin-top:10px;">呼び出し中…</div>
+        </div>
+        <div class="notice" id="kcNotice">「この電話は、サービス向上のため音声メモを取らせていただきます」を再生しています…</div>
+        <button class="endbtn" onclick="deskEndCall()">終了</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ================= data ================= */
+const USERS = ["佐藤 花子 様","田中 一郎 様","鈴木 春子 様","山田 太郎 様"];
+
+let records = [
+  { id:1, who:"あおぞらデイサービス", staff:"鈴木", time:"14:32", dur:"6分12秒", user:"佐藤 花子 様", status:"記録済",
+    s:"佐藤花子様のデイ利用日を火曜から木曜へ変更（7/10〜）。ご家族へ確認予定。",
+    m:"【相手】あおぞらデイサービス 相談員 山本様\n【内容】佐藤花子様の利用日変更の相談。ご家族の送迎都合により、毎週火曜→木曜への変更希望。\n【対応】木曜の受け入れ枠あり。7月10日（木）から変更で合意。ケアプラン変更が必要なため、ご家族へ確認の電話を入れることとした。",
+    l:"【相手】あおぞらデイサービス 相談員 山本様（14:32着信・6分12秒）\n【経緯】長女様の勤務シフト変更により、火曜の送り出しが難しくなったとご家族から事業所へ相談があった。\n【内容】毎週火曜の通所を木曜へ変更したいとの希望。木曜午前の受け入れ枠に空きがあることを確認。入浴サービスは現行どおり継続可能。\n【対応・今後】7月10日（木）から変更で合意。ケアプラン第3表の修正が必要。本日中に長女様へ確認の電話を入れ、来週の担当者会議で共有する。",
+    f:"山本「お世話になっております。あおぞらデイサービスの山本です。佐藤花子様の件でお電話しました」\n私「お世話になります。どうされましたか」\n山本「ご家族の長女様から、火曜日の送り出しが難しくなったとご相談がありまして、木曜日に変更できないかと…」\n私「木曜ですね。そちらの受け入れ枠は空いていますか」\n山本「はい、木曜午前でしたらお受けできます」\n（以下つづく…）" },
+  { id:2, who:"みどり訪問看護", staff:"鈴木", time:"11:05", dur:"4分40秒", user:"田中 一郎 様", status:"記録済",
+    s:"田中一郎様の血圧が高め（158/95）。主治医へ報告予定。",
+    m:"【相手】みどり訪問看護 看護師 加藤様\n【内容】田中一郎様の本日の訪問報告。血圧158/95と高め。ご本人に自覚症状なし。\n【対応】主治医へ情報提供の上、次回訪問（金曜）で再測定。変化があれば連絡をもらう。",
+    l:"【相手】みどり訪問看護 看護師 加藤様（11:05着信・4分40秒）\n【内容】本日の訪問看護の報告。田中一郎様の血圧が158/95と普段（130台）より高め。ご本人に頭痛・めまい等の自覚症状はなし。服薬は自己管理できている。\n【対応・今後】主治医の斉藤クリニックへFAXで情報提供する。次回訪問（金曜）で再測定し、高値が続く場合は受診調整を検討。ご家族への共有は経過を見て判断。",
+    f:"加藤「みどり訪問看護の加藤です。田中一郎様の本日の訪問のご報告です」\n私「お願いします」\n加藤「血圧が158の95と、普段より高めでした。ご本人に自覚症状はありません」\n（以下つづく…）" },
+  { id:3, who:"090-1234-XXXX", staff:"小林", time:"9:48", dur:"3分05秒", user:null, status:"未確認",
+    s:"退院日が7月10日に決定。福祉用具の手配が必要。",
+    m:"【相手】ご家族（続柄確認中）\n【内容】退院日が7月10日（金）に決定したとの連絡。自宅での生活再開にあたり、ベッド等の福祉用具の相談。\n【対応】退院前に福祉用具事業者と自宅訪問の日程を調整する。",
+    l:"【相手】ご家族（090-1234-XXXX・続柄確認中）\n【内容】入院中だったご本人の退院日が7月10日（金）に決定。自宅の寝室での生活再開にあたり、介護ベッドと手すりの相談をしたいとのこと。\n【対応・今後】福祉用具事業者へ連絡し、退院前の自宅訪問（住環境確認）の日程を調整。退院前カンファレンスの開催有無を病院に確認する。",
+    f:"ご家族「お世話になります。退院の日が決まりましたのでご連絡しました。7月10日の金曜です」\n私「ありがとうございます。ご自宅の準備を進めましょう」\n（以下つづく…）" },
+  { id:4, who:"さくら居宅支援センター", staff:"渡辺", time:"昨日 16:20", dur:"5分30秒", user:"鈴木 春子 様", status:"記録済",
+    s:"担会の日程が7月15日（水）14時で確定。",
+    m:"【相手】さくら居宅支援センター 主任 森様\n【内容】鈴木春子様のサービス担当者会議の日程調整。\n【対応】7月15日（水）14時で確定。会場はご自宅。参加：デイ、訪看、福祉用具。",
+    l:"【相手】さくら居宅支援センター 主任 森様（昨日16:20・5分30秒）\n【内容】鈴木春子様のサービス担当者会議（区分変更に伴う）の日程調整。候補日3つのうち、各事業所の都合がそろう日を確認。\n【対応・今後】7月15日（水）14時、ご自宅で開催に確定。参加はデイサービス、訪問看護、福祉用具事業者。開催案内を各所へFAXし、当日は原案（第1〜3表）を持参する。",
+    f:"森「担当者会議の日程の件ですが、15日の水曜14時はいかがでしょう」\n私「大丈夫です。会場はご自宅でよろしいですか」\n（以下つづく…）" },
+];
+
+/* scripted results for new calls */
+const CALL_SCRIPTS = {
+  aozora:{ who:"あおぞらデイサービス", user:"佐藤 花子 様",
+    s:"7/10からの利用日変更（火→木）を最終確認。送迎時間は9:15に決定。",
+    m:"【相手】あおぞらデイサービス 相談員 山本様\n【内容】7月10日からの利用日変更（火曜→木曜）の最終確認。木曜の送迎時間は9:15お迎えで決定。\n【対応】ご家族へ送迎時間を連絡し、ケアプラン第3表を修正する。",
+    l:"【相手】あおぞらデイサービス 相談員 山本様（発信）\n【内容】先日合意した利用日変更（火曜→木曜、7月10日開始）の最終確認。木曜の送迎ルートが確定し、お迎え9:15・お送り16:30となる。持ち物・入浴は現行どおり。\n【対応・今後】本日中にご長女様へ送迎時間を連絡。ケアプラン第3表・週間サービス計画表を修正し、次回モニタリングで変更後の様子を確認する。",
+    f:"私「お世話になります。佐藤花子様の木曜への変更の件、最終確認でお電話しました」\n山本「はい、木曜のお迎えは9時15分で確定しました」\n私「ありがとうございます。ご家族にもお伝えします」\n（以下つづく…）" },
+  midori:{ who:"みどり訪問看護ステーション", user:"田中 一郎 様",
+    s:"田中様の血圧はやや改善（142/88）。金曜も継続観察。",
+    m:"【相手】みどり訪問看護 看護師 加藤様\n【内容】田中一郎様の血圧の経過確認。本日は142/88とやや改善。自覚症状なし。\n【対応】金曜の訪問でも継続観察。主治医への受診調整は保留とする。",
+    l:"【相手】みどり訪問看護 看護師 加藤様（発信）\n【内容】先日血圧高値（158/95）だった田中一郎様の経過確認。本日の測定では142/88とやや改善。頭痛・めまい等の自覚症状なし。服薬・水分は問題なし。\n【対応・今後】金曜の定期訪問で継続観察し、再度高値の場合は主治医へ受診調整を依頼する。ご家族への共有は金曜の結果を待って判断。",
+    f:"私「田中一郎様の血圧のその後はいかがでしょうか」\n加藤「本日は142の88で、少し落ち着いています」\n私「よかったです。金曜もお願いします」\n（以下つづく…）" },
+  family:{ who:"山田様ご長女（携帯）", user:"山田 太郎 様",
+    s:"退院（7/10）前の自宅訪問を7/8（水）10時に決定。ベッド搬入は7/9。",
+    m:"【相手】山田太郎様 ご長女\n【内容】退院（7/10）に向けた自宅訪問の日程調整。7月8日（水）10時に福祉用具事業者と訪問することで合意。\n【対応】介護ベッドは7月9日（木）に搬入予定。事業者へ日程を連絡する。",
+    l:"【相手】山田太郎様 ご長女（発信・携帯）\n【経緯】7月10日退院決定を受け、住環境の確認と福祉用具の準備が必要。\n【内容】自宅訪問を7月8日（水）10時に実施することで合意。ご長女様も同席予定。寝室は1階和室を使用し、介護ベッドと立ち上がり用手すりを設置する方向。\n【対応・今後】福祉用具事業者へ訪問日程を連絡。ベッド搬入は7月9日（木）予定。退院当日の移動手段（介護タクシー）の手配可否をご家族が確認する。",
+    f:"私「退院前に一度ご自宅を拝見したく、8日の水曜10時はいかがですか」\nご長女「大丈夫です。私も立ち会います」\n私「ではベッドの搬入は9日で調整しますね」\n（以下つづく…）" },
+  hospital:{ who:"市立病院 地域連携室", user:"山田 太郎 様",
+    s:"退院前カンファレンスは7/7（月）15時、病院で開催。",
+    m:"【相手】市立病院 地域連携室 相談員 大野様\n【内容】山田太郎様の退院前カンファレンスの日程調整。7月7日（月）15時、病院内で開催。\n【対応】訪問看護・福祉用具事業者へ参加依頼の連絡を入れる。",
+    l:"【相手】市立病院 地域連携室 相談員 大野様（発信）\n【内容】7月10日退院予定の山田太郎様について、退院前カンファレンスを7月7日（月）15時から病院内カンファレンス室で開催することに決定。病棟看護師・リハビリ担当が同席予定。\n【対応・今後】訪問看護ステーションと福祉用具事業者へ参加依頼。当日は居宅サービス計画の原案と、自宅環境の写真を持参する。",
+    f:"私「山田太郎様の退院前カンファレンスの日程のご相談です」\n大野「7日月曜の15時はいかがでしょう。病棟看護師も同席します」\n私「承知しました。関係事業所にも声をかけます」\n（以下つづく…）" },
+};
+
+/* ================= state ================= */
+let current = null;      // current record in detail
+let mode = "sum", level = "m";
+let callTimer = null, callSec = 0, activeScript = null;
+let nextId = 100;
+
+/* ================= render: history ================= */
+function esc(s){ return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function renderHistory(highlightId){
+  const el = document.getElementById("recList");
+  el.innerHTML = "";
+  records.forEach(r => {
+    const b = document.createElement("button");
+    b.className = "rec" + (r.making ? " making" : "") + (r.id === highlightId ? " newpulse" : "");
+    if (r.making){
+      b.innerHTML = `<div class="row1"><span class="who">${esc(r.who)}</span><span class="when">${esc(r.time)}</span></div>
+        <div style="margin-top:9px; font-size:14px; color:var(--slate-deep);"><span class="spin"></span>AIが記録を作成中…（そのまま次の仕事へどうぞ）</div>`;
+    } else {
+      const tag = r.user ? `<span class="tag">${esc(r.user)}</span>` : `<span class="tag unset">利用者を選ぶ</span>`;
+      b.innerHTML = `<div class="row1"><span class="who">${esc(r.who)}</span><span class="when">${esc(r.time)}</span></div>
+        <div>${tag}</div><div class="prev">${esc(r.s)}</div>`;
+      b.onclick = () => openDetail(r.id);
+    }
+    el.appendChild(b);
+  });
+  renderDesk();
+}
+
+/* ================= detail ================= */
+function openDetail(id){
+  current = records.find(r => r.id === id);
+  if (!current) return;
+  mode = "sum"; level = "m";
+  document.getElementById("dWho").textContent = current.who;
+  document.getElementById("dMeta").textContent = `7月3日（金）${current.time} ・ 通話 ${current.dur}`;
+  syncSeg(); renderTag(); renderBody();
+  current.status = "記録済";
+  showScreen("sc-detail"); setNav("nav-h");
+  renderDesk();
+}
+function renderTag(){
+  const t = document.getElementById("dTag");
+  if (current.user){ t.textContent = current.user; t.className = "tag"; t.style.fontSize="14px"; t.style.padding="7px 16px"; t.style.border="none"; }
+  else { t.textContent = "利用者を選ぶ"; t.className = "tag unset"; t.style.fontSize="14px"; t.style.padding="7px 16px"; }
+}
+function renderBody(){
+  const b = document.getElementById("dBody");
+  b.textContent = (mode === "full") ? current.f : current[{s:"s",m:"m",l:"l"}[level]];
+  const lr = document.getElementById("levelRow");
+  lr.style.opacity = mode === "full" ? .35 : 1;
+  lr.style.pointerEvents = mode === "full" ? "none" : "auto";
+}
+function syncSeg(){
+  document.getElementById("mSum").classList.toggle("on", mode==="sum");
+  document.getElementById("mFull").classList.toggle("on", mode==="full");
+  ["s","m","l"].forEach(k => document.getElementById("lv"+k.toUpperCase()).classList.toggle("on", k===level));
+}
+function setMode(m){ mode = m; syncSeg(); renderBody(); }
+function setLevel(l){ level = l; syncSeg(); renderBody(); }
+
+/* copy (共通) */
+function buildText(rec, formatted, mm, lv){
+  if (formatted){
+    return `＜支援経過記録＞\n日時：2026年7月3日 ${rec.time}（電話・${rec.dur}）\n相手：${rec.who}\n利用者：${rec.user || "（未設定）"}\n${rec[{s:"s",m:"m",l:"l"}[lv]]}`;
+  }
+  return (mm==="full") ? rec.f : rec[{s:"s",m:"m",l:"l"}[lv]];
+}
+function doCopy(text){
+  const done = () => toast("コピーしました。介護ソフトに貼り付けできます");
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+function copyRec(formatted, btn){ doCopy(buildText(current, formatted, mode, level)); }
+function fallbackCopy(text, done){
+  const ta = document.createElement("textarea");
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); done(); } catch(e){ toast("コピーできませんでした"); }
+  document.body.removeChild(ta);
+}
+
+/* ================= dial tabs & keypad ================= */
+let dialNum = "";
+function setDialTab(t){
+  document.getElementById("dtC").classList.toggle("on", t==="c");
+  document.getElementById("dtK").classList.toggle("on", t==="k");
+  document.getElementById("dialContacts").style.display = t==="c" ? "block" : "none";
+  document.getElementById("dialKeypad").style.display = t==="k" ? "block" : "none";
+}
+function renderNum(){
+  const el = document.getElementById("numDisp");
+  el.innerHTML = dialNum ? esc(dialNum) : '<span class="ph">電話番号を入力してください</span>';
+}
+function addDigit(d){ if (dialNum.length >= 13) return; dialNum += d; renderNum(); }
+function delDigit(){ dialNum = dialNum.slice(0, -1); renderNum(); }
+function manualScript(num){
+  return { who:num, user:null,
+    s:"新規利用のご相談（地域包括からの紹介）。来週面談の日程を調整予定。",
+    m:"【相手】"+num+"（名称未登録）\n【内容】新規利用のご相談。地域包括支援センターからの紹介とのこと。要支援から要介護への区分変更を検討中。\n【対応】来週の面談日程を調整することとした。折り返し連絡予定。",
+    l:"【相手】"+num+"（名称未登録）\n【内容】新規利用のご相談。地域包括支援センターの紹介で連絡があった。ご本人（80代・独居）は最近転倒があり、要支援から要介護への区分変更を検討中。ご家族は遠方在住。\n【対応・今後】来週の面談日程を調整する。面談時に介護保険証と現在のサービス利用状況を確認。地域包括の担当者にも情報共有の連絡を入れる。",
+    f:"相手「地域包括支援センターのご紹介でお電話しました。母の介護のことでご相談がありまして…」\n私「お電話ありがとうございます。まずはご状況をお伺いして、面談のお日にちを決めましょう」\n（以下つづく…）" };
+}
+function manualCall(){
+  if (!dialNum){ toast("番号を入力してください"); return; }
+  const num = dialNum;
+  dialNum = ""; renderNum();
+  startCallWith(manualScript(num));
+}
+
+/* ================= desktop detail ================= */
+let deskCur = null, kMode = "sum", kLevel = "m";
+function deskShowPane(p){
+  document.getElementById("dpList").classList.toggle("on", p==="list");
+  document.getElementById("dpDetail").classList.toggle("on", p==="detail");
+  document.getElementById("dpCall").classList.toggle("on", p==="call");
+  document.getElementById("dtabL").classList.toggle("on", p==="list");
+  document.getElementById("dtabD").classList.toggle("on", p==="detail");
+  document.getElementById("dtabC").classList.toggle("on", p==="call");
+}
+
+/* ---- PCからの発信 ---- */
+let deskNum = "", deskCallTimer = null, deskCallSec = 0, deskActive = null;
+function deskRenderNum(){
+  const el = document.getElementById("kNumDisp");
+  el.innerHTML = deskNum ? esc(deskNum) : '<span class="ph">電話番号を入力してください</span>';
+}
+function deskAddDigit(d){ if (deskNum.length >= 13) return; deskNum += d; deskRenderNum(); }
+function deskDelDigit(){ deskNum = deskNum.slice(0, -1); deskRenderNum(); }
+function deskStartCall(key){ deskStartWith(CALL_SCRIPTS[key]); }
+function deskManualCall(){
+  if (!deskNum){ toast("番号を入力してください"); return; }
+  const num = deskNum;
+  deskNum = ""; deskRenderNum();
+  deskStartWith(manualScript(num));
+}
+function deskStartWith(script){
+  deskActive = script;
+  document.getElementById("kcWho").textContent = script.who;
+  document.getElementById("kcState").textContent = "呼び出し中…";
+  document.getElementById("kcNotice").style.visibility = "visible";
+  document.getElementById("deskCallScr").classList.add("on");
+  deskCallSec = 0;
+  clearInterval(deskCallTimer);
+  setTimeout(() => {
+    document.getElementById("kcNotice").style.visibility = "hidden";
+    document.getElementById("kcState").textContent = "通話中 0:00";
+    deskCallTimer = setInterval(() => {
+      deskCallSec++;
+      const m = String(Math.floor(deskCallSec/60)); const s = String(deskCallSec%60).padStart(2,"0");
+      document.getElementById("kcState").textContent = `通話中 ${m}:${s}`;
+    }, 1000);
+  }, 2200);
+}
+function deskEndCall(){
+  clearInterval(deskCallTimer);
+  document.getElementById("deskCallScr").classList.remove("on");
+  if (!deskActive) return;
+  finishCall(deskActive, deskCallSec, "高橋", "クリックして確認できます");
+  deskActive = null;
+  deskShowPane("list");
+  toast("通話を終了しました。記録は自動で作成されます");
+}
+function deskTabDetail(){
+  if (!deskCur){ toast("一覧から記録をクリックして選んでください"); return; }
+  deskShowPane("detail");
+}
+function deskOpen(id){
+  const r = records.find(x => x.id === id);
+  if (!r || r.making) return;
+  deskCur = r; kMode = "sum"; kLevel = "m";
+  document.getElementById("kWho").textContent = r.who;
+  document.getElementById("kMeta").textContent = `7月3日（金）${r.time} ・ 通話 ${r.dur} ・ 担当：${r.staff}`;
+  const sel = document.getElementById("kUserSel");
+  sel.innerHTML = '<option value="">未設定</option>' + USERS.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
+  sel.value = r.user || "";
+  r.status = "記録済";
+  deskSync(); deskRenderBody();
+  deskShowPane("detail");
+  renderHistory();
+}
+function deskSync(){
+  document.getElementById("kSum").classList.toggle("on", kMode==="sum");
+  document.getElementById("kFull").classList.toggle("on", kMode==="full");
+  ["s","m","l"].forEach(k => document.getElementById("klv"+k.toUpperCase()).classList.toggle("on", k===kLevel));
+}
+function deskRenderBody(){
+  document.getElementById("kBody").textContent = (kMode==="full") ? deskCur.f : deskCur[{s:"s",m:"m",l:"l"}[kLevel]];
+  const lr = document.getElementById("kLevelRow");
+  lr.style.opacity = kMode==="full" ? .35 : 1;
+  lr.style.pointerEvents = kMode==="full" ? "none" : "auto";
+}
+function deskSetMode(m){ kMode = m; deskSync(); deskRenderBody(); }
+function deskSetLevel(l){ kLevel = l; deskSync(); deskRenderBody(); }
+function deskSetUser(v){
+  deskCur.user = v || null;
+  renderHistory();
+  toast(v ? v + " に設定しました" : "利用者を未設定にしました");
+}
+function deskCopy(formatted){ doCopy(buildText(deskCur, formatted, kMode, kLevel)); }
+
+/* ================= user chooser ================= */
+function openSheet(){
+  const box = document.getElementById("sheetOpts");
+  box.innerHTML = "";
+  USERS.forEach(u => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = u;
+    b.onclick = () => { current.user = u; renderTag(); renderHistory(); closeSheetForce(); toast(u + " に設定しました"); };
+    box.appendChild(b);
+  });
+  document.getElementById("sheet").classList.add("on");
+}
+function closeSheet(e){ if (e.target.id === "sheet") closeSheetForce(); }
+function closeSheetForce(){ document.getElementById("sheet").classList.remove("on"); }
+
+/* ================= call simulation ================= */
+function startCall(key){ startCallWith(CALL_SCRIPTS[key]); }
+function startCallWith(script){
+  activeScript = script;
+  document.getElementById("cWho").textContent = activeScript.who;
+  document.getElementById("cState").textContent = "呼び出し中…";
+  document.getElementById("cNotice").style.visibility = "visible";
+  document.getElementById("callScr").classList.add("on");
+  callSec = 0;
+  clearInterval(callTimer);
+  setTimeout(() => {
+    document.getElementById("cNotice").style.visibility = "hidden";
+    callTimer = setInterval(() => {
+      callSec++;
+      const m = String(Math.floor(callSec/60)); const s = String(callSec%60).padStart(2,"0");
+      document.getElementById("cState").textContent = `通話中 ${m}:${s}`;
+    }, 1000);
+    document.getElementById("cState").textContent = "通話中 0:00";
+  }, 2200);
+}
+function finishCall(script, sec, staff, confirmHint){
+  const now = new Date();
+  const time = now.getHours() + ":" + String(now.getMinutes()).padStart(2,"0");
+  const durTxt = Math.floor(Math.max(sec, 1)/60) + "分" + String(Math.max(sec,1)%60).padStart(2,"0") + "秒";
+  const rec = { id: nextId++, who: script.who, staff, time, dur: durTxt,
+    user: script.user, status:"未確認", making:true,
+    s: script.s, m: script.m, l: script.l, f: script.f };
+  records.unshift(rec);
+  renderHistory();
+  setTimeout(() => { rec.making = false; renderHistory(rec.id); toast("要約ができました。" + confirmHint); }, 4200);
+  return rec;
+}
+function endCall(){
+  clearInterval(callTimer);
+  document.getElementById("callScr").classList.remove("on");
+  if (!activeScript) return;
+  finishCall(activeScript, callSec, "鈴木", "タップして確認できます");
+  activeScript = null;
+  showScreen("sc-history"); setNav("nav-h");
+  toast("通話を終了しました。記録は自動で作成されます");
+}
+
+/* ================= users screen ================= */
+function renderUsers(){
+  const el = document.getElementById("userList");
+  el.innerHTML = "";
+  USERS.forEach(u => {
+    const cnt = records.filter(r => r.user === u && !r.making).length;
+    const b = document.createElement("button");
+    b.className = "user";
+    b.innerHTML = `<span class="nm">${esc(u)}</span><span class="cnt">記録 ${cnt} 件 ›</span>`;
+    b.onclick = () => {
+      const first = records.find(r => r.user === u && !r.making);
+      if (first) openDetail(first.id); else toast("まだ記録がありません");
+    };
+    el.appendChild(b);
+  });
+}
+
+/* ================= desktop ================= */
+function renderDesk(){
+  const tb = document.getElementById("deskRows");
+  tb.innerHTML = "";
+  const fs = document.getElementById("fStaff").value;
+  const fp = document.getElementById("fPeriod").value;
+  const fq = document.getElementById("fSearch").value.trim();
+  let done = 0, todo = 0, total = 0, shown = 0;
+  records.forEach(r => {
+    // 絞り込み判定（作成中の行にも適用）
+    if (fs && r.staff !== fs) return;
+    if (fp === "today" && r.time.indexOf("昨日") === 0) return;
+    if (fq && !r.making){
+      const hay = r.who + (r.user || "") + r.s;
+      if (hay.indexOf(fq) === -1) return;
+    }
+    if (r.making){
+      const tr = document.createElement("tr");
+      tr.className = "makingrow";
+      tr.innerHTML = `<td colspan="6"><span class="spin"></span>${esc(r.who)} との通話の記録をAIが作成中…</td>`;
+      tb.appendChild(tr);
+      shown++;
+      return;
+    }
+    total++; shown++;
+    if (r.status === "記録済") done++; else todo++;
+    const tr = document.createElement("tr");
+    tr.onclick = () => deskOpen(r.id);
+    tr.innerHTML = `<td style="color:var(--mute);">${esc(r.time)}</td><td>${esc(r.staff)}</td>
+      <td>${esc(r.who)}</td><td style="color:${r.user?"inherit":"var(--mute)"};">${esc(r.user || "未設定")}</td>
+      <td style="color:var(--mute); max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(r.s)}</td>
+      <td><span class="pill ${r.status==="記録済"?"ok":"warn"}">${esc(r.status)}</span></td>`;
+    tb.appendChild(tr);
+  });
+  if (shown === 0){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="6" style="color:var(--mute); text-align:center; padding:24px;">条件に合う記録がありません。絞り込みを変えてお試しください。</td>`;
+    tb.appendChild(tr);
+  }
+  const lbl = { today:"今日の通話", week:"今週の通話", month:"今月の通話" }[fp];
+  document.getElementById("stTotalLabel").textContent = fs ? `${lbl}（${fs}）` : lbl;
+  document.getElementById("stTotal").firstChild.textContent = total;
+  document.getElementById("stDone").firstChild.textContent = done;
+  document.getElementById("stTodo").firstChild.textContent = todo;
+}
+
+/* ================= nav / view ================= */
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+}
+function setNav(id){
+  ["nav-h","nav-d","nav-u"].forEach(n => document.getElementById(n).classList.toggle("on", n===id));
+}
+function switchView(v){
+  document.getElementById("phoneView").style.display = v==="phone" ? "block" : "none";
+  document.getElementById("deskView").classList.toggle("on", v==="desk");
+  document.getElementById("swPhone").classList.toggle("on", v==="phone");
+  document.getElementById("swDesk").classList.toggle("on", v==="desk");
+  document.getElementById("guideText").innerHTML = v==="phone"
+    ? "<b>体験の流れ：</b>①下の「電話」から相手を選んで発信 → ②「通話を終える」を押す → ③履歴に<b>要約が自動で作られる</b>のをご覧ください → ④履歴を開いて「支援経過の形式でコピー」もお試しください。"
+    : "<b>管理者・主任向けの画面です。</b>スタッフ全員の通話記録を一覧できます。<b>行をクリックすると詳細（要約の切替・コピー）が開きます。</b>スマホ側で発信した通話もここに反映されます。";
+  if (v==="desk") renderDesk();
+}
+
+/* toast */
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 2600);
+}
+
+/* init */
+document.getElementById("todayLabel").textContent = "7月3日（金）";
+renderHistory();
+renderDesk();
+</script>
+</body>
+</html>
